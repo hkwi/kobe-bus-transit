@@ -3,6 +3,7 @@ import lxml.etree
 import glob
 import re
 import os.path
+import datetime
 import html_table
 
 def to_text(cell):
@@ -31,12 +32,24 @@ def note_split(bulk):
 	
 	return notes
 
-stop_times = [tuple("ファイル名 系統 行き 発 曜日 時 分 備考欄 印 備考".split())]
-notes = [tuple("ファイル名 備考欄 備考".split())]
+stop_times = ["ファイル名 系統 行き 発 曜日 時 分 備考欄 印 備考".split()]
+notes = ["ファイル名 備考欄 備考".split()]
+updates = ["ファイル名 改正".split()]
 
 def proc(f):
 	bn = os.path.basename(f)
 	t = lxml.etree.HTML(open(f, "rb").read())
+	
+	tm = None
+	for s in t.xpath(".//text()"):
+		m = re.search(r"(\d+)年(\d+)月(\d+)日", s)
+		if m:
+			assert "改正" in s, s
+			assert tm is None, s
+			tm = datetime.date(*[int(s) for s in m.groups()])
+	assert tm, f
+	updates.append([bn, tm.isoformat()])
+	
 	h = [None]*6 # h1 to h6
 	note = 0
 	info = {}
@@ -104,3 +117,4 @@ for r in glob.glob("www.city.kobe.lg.jp/life/access/transport/bus/jikoku/basjiko
 
 csv.writer(open("parsed_stop_times.csv","w")).writerows(stop_times)
 csv.writer(open("parsed_notes.csv","w")).writerows(notes)
+csv.writer(open("parsed_updates.csv","w")).writerows(updates)
